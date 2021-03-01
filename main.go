@@ -8,16 +8,26 @@ import (
 )
 
 func main() {
-	fmt.Println("Main program called")
-	err := nomadcicd.SubmitJob(os.Getenv("NOMAD_ADDRESS"))
 	out, err := helper.RunCommandExec("env")
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println(out)
+
+	err = helper.DockerBuildAndPush()
 	if err != nil {
 		fmt.Println(err)
+	}
+
+	if os.Getenv("NOMAD_ADDRESS") == "" {
+		fmt.Println("skip nomad deployment")
 	} else {
-		fmt.Println("Success!")
+		err = nomadcicd.SubmitJob(os.Getenv("NOMAD_ADDRESS"))
+
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			fmt.Println("Success!")
+		}
 	}
 }
