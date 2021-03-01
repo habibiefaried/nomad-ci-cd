@@ -9,7 +9,7 @@ import (
 
 func RunCommandExec(cmdinput string) (string, error) {
 	fmt.Println("[DEBUG] Executing " + cmdinput)
-	cmd := exec.Command("/bin/bash", "-c", cmdinput)
+	cmd := exec.Command("/bin/sh", "-c", cmdinput)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out

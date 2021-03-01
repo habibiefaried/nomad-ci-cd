@@ -22,3 +22,5 @@ Nomad ci/cd generator to generate all CI/CD command in 1 file
 * ENV_SOURCE: *Optional*, if you have env file that want to be sourced as container environment variables. If not set, then by default it will try to find `.env` file
 * DOCKER_LOGIN_PASSWORD: Password to login (only dockerhub.com supported)
 * DOCKER_LOGIN_USERNAME: Username to login (only dockerhub.com supported)
+* DOCKERFILE: Dockerfile name
+* NOMAD_ADDRESS: Address of nomad server, will skip deployment if this is not set
