@@ -71,8 +71,8 @@ job %s--%s {
       check {
         port        = "%s"
         type        = "tcp"
-        interval    = "90s"
-        timeout     = "60s"
+        interval    = "15s"
+        timeout     = "14s"
       }
     }
   }
