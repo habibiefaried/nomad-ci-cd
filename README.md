@@ -24,3 +24,4 @@ Nomad ci/cd generator to generate all CI/CD command in 1 file
 * DOCKER_LOGIN_USERNAME: Username to login (only dockerhub.com supported)
 * DOCKERFILE: Dockerfile name
 * NOMAD_ADDRESS: Address of nomad server, will skip deployment if this is not set
+* CONTAINER_DNS_SERVER: DNS Server that container should be using

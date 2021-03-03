@@ -41,6 +41,7 @@ job %s--%s {
     count = %s
     network {
       port "%s" { to = %s }
+      %s
     }
 
     task "server" {
@@ -77,8 +78,18 @@ job %s--%s {
     }
   }
 }`
-	return fmt.Sprintf(template, namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("NUM_REPLICA"), os.Getenv("PORT_NAME"), os.Getenv("TARGET_PORT"), templateGenerator(), fmt.Sprintf("%v", currentTime.Format("2006-01-02 15:04:05.000000000")), os.Getenv("IMAGE_URL"), os.Getenv("PORT_NAME"), os.Getenv("JOB_CPU"), os.Getenv("JOB_MEMORY"), namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("PORT_NAME"), tagGenerator(), os.Getenv("PORT_NAME"))
+	return fmt.Sprintf(template, namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("NUM_REPLICA"), os.Getenv("PORT_NAME"), os.Getenv("TARGET_PORT"), generateDNSServer(), templateGenerator(), fmt.Sprintf("%v", currentTime.Format("2006-01-02 15:04:05.000000000")), os.Getenv("IMAGE_URL"), os.Getenv("PORT_NAME"), os.Getenv("JOB_CPU"), os.Getenv("JOB_MEMORY"), namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("PORT_NAME"), tagGenerator(), os.Getenv("PORT_NAME"))
 
+}
+
+func generateDNSServer() string {
+	if os.Getenv("CONTAINER_DNS_SERVER") != "" {
+		return fmt.Sprintf(`dns {
+        servers = ["%s"]
+      }`, os.Getenv("CONTAINER_DNS_SERVER"))
+	} else {
+		return ""
+	}
 }
 
 func tagGenerator() string {
