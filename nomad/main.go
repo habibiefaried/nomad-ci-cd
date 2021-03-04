@@ -5,6 +5,7 @@ import (
 	nomad "github.com/hashicorp/nomad/api"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -92,20 +93,36 @@ func generateDNSServer() string {
 	}
 }
 
+func hostGenerator() string {
+	ret := ""
+	arrstr := strings.Split(os.Getenv("APP_HOST"), "#")
+	for _, vhost := range arrstr {
+		if vhost != "" {
+			ret = ret + fmt.Sprintf("Host(\\\"%s\\\") || ", vhost)
+		}
+	}
+
+	return ret[:len(ret)-3]
+}
+
 func tagGenerator() string {
 	tags := "\"traefik.enable=true\",\n"
 	isMiddlewareEnabled := false
 
 	if os.Getenv("APP_PREFIX_REGEX") != "" {
 		isMiddlewareEnabled = true
-		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s.rule=Host(\\\"%s\\\") && PathPrefix(\\\"%s\\\")\",\n", os.Getenv("PORT_NAME"), os.Getenv("APP_HOST"), os.Getenv("APP_PREFIX_REGEX"))
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s.rule=Host(\\\"%s\\\") && PathPrefix(\\\"%s\\\")\",\n", os.Getenv("PORT_NAME"), hostGenerator(), os.Getenv("APP_PREFIX_REGEX"))
 		tags = tags + fmt.Sprintf("\t\"traefik.http.middlewares.%s.stripprefix.prefixes=%s\",\n", os.Getenv("PORT_NAME"), os.Getenv("APP_PREFIX_REGEX"))
-	} else {
-		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s.rule=Host(\\\"%s\\\")\",\n", os.Getenv("PORT_NAME"), os.Getenv("APP_HOST"))
 		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.tls=true\",\n", os.Getenv("PORT_NAME"))
-		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.rule=Host(\\\"%s\\\")\",\n", os.Getenv("PORT_NAME"), os.Getenv("APP_HOST"))
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.rule=Host(\\\"%s\\\")\" && PathPrefix(\\\"%s\\\")\",\n", os.Getenv("PORT_NAME"), hostGenerator(), os.Getenv("APP_PREFIX_REGEX"))
 		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.tls.certresolver=myresolver\",\n", os.Getenv("PORT_NAME"))
-		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.tls.domains[0].main=%s\",\n", os.Getenv("PORT_NAME"), os.Getenv("APP_HOST"))
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.tls.domains[0].main=%s\",\n", os.Getenv("PORT_NAME"), hostGenerator())
+	} else {
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s.rule=Host(\\\"%s\\\")\",\n", os.Getenv("PORT_NAME"), hostGenerator())
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.tls=true\",\n", os.Getenv("PORT_NAME"))
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.rule=Host(\\\"%s\\\")\",\n", os.Getenv("PORT_NAME"), hostGenerator())
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.tls.certresolver=myresolver\",\n", os.Getenv("PORT_NAME"))
+		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s-https.tls.domains[0].main=%s\",\n", os.Getenv("PORT_NAME"), hostGenerator())
 	}
 
 	if os.Getenv("TRAEFIK_PASSWORD") != "" {

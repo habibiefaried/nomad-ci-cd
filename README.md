@@ -17,7 +17,7 @@ Nomad ci/cd generator to generate all CI/CD command in 1 file
 * JOB_CPU: CPU for this container in MHz
 * JOB_MEMORY: Memory for this container in MB
 * APP_PREFIX_REGEX: *Optional*, if you have predefined prefix/path on your system
-* APP_HOST: DNS of this app
+* APP_HOST: DNS of this app. Can use "#" to use multiple domains
 * TRAEFIK_PASSWORD: *Optional*, if you want to protect this container with apache2 compliant basic authentication
 * ENV_SOURCE: *Optional*, if you have env file that want to be sourced as container environment variables. If not set, then by default it will try to find `.env` file
 * DOCKER_LOGIN_PASSWORD: Password to login (only dockerhub.com supported)
