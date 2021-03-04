@@ -14,6 +14,12 @@ func main() {
 	}
 	fmt.Println(out)
 
+	out, err = helper.RunCommandExec("curl https://api.ipify.org")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(out)
+
 	err = helper.DockerBuildAndPush()
 	if err != nil {
 		fmt.Println(err)
