@@ -152,7 +152,7 @@ func templateGenerator() string {
 		%s
 		EOH
 		destination   = ".env"
-		env           = true
+		env           = false
 	}`
 		return fmt.Sprintf(template, string(content))
 	}
