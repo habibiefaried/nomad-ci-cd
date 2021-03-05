@@ -131,6 +131,9 @@ func tagGenerator() string {
 	if isMiddlewareEnabled {
 		tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s.middlewares=%s@consulcatalog\",\n", os.Getenv("PORT_NAME"), os.Getenv("PORT_NAME"))
 	}
+
+	tags = tags + fmt.Sprintf("\t\"traefik.http.middlewares.%s-https.redirectscheme.scheme=https\",\n", os.Getenv("PORT_NAME"))
+	tags = tags + fmt.Sprintf("\t\"traefik.http.routers.%s.middlewares=%s-https\",\n", os.Getenv("PORT_NAME"), os.Getenv("PORT_NAME"))
 	return tags
 }
 
