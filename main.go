@@ -23,6 +23,7 @@ func main() {
 	err = helper.DockerBuildAndPush()
 	if err != nil {
 		fmt.Println(err)
+		os.Exit(3)
 	}
 
 	if os.Getenv("NOMAD_ADDRESS") == "" {
@@ -32,6 +33,7 @@ func main() {
 
 		if err != nil {
 			fmt.Println(err)
+			os.Exit(5)
 		} else {
 			fmt.Println("Success!")
 		}
