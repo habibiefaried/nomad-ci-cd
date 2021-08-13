@@ -25,3 +25,4 @@ Nomad ci/cd generator to generate all CI/CD command in 1 file
 * DOCKERFILE: Dockerfile name
 * NOMAD_ADDRESS: Address of nomad server, will skip deployment if this is not set
 * CONTAINER_DNS_SERVER: DNS Server that container should be using
+* CONS_ATTR & CONS_OP && CONS_VALUE: Follows https://www.nomadproject.io/docs/job-specification/constraint. Only 1 constraint will be applied

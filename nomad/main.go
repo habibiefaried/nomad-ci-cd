@@ -38,6 +38,7 @@ func jobGeneration() string {
 	template := `
 job %s--%s {
   datacenters = ["dc1"]
+  %s
   group "app" {
     count = %s
     network {
@@ -79,7 +80,7 @@ job %s--%s {
     }
   }
 }`
-	return fmt.Sprintf(template, namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("NUM_REPLICA"), os.Getenv("PORT_NAME"), os.Getenv("TARGET_PORT"), generateDNSServer(), templateGenerator(), fmt.Sprintf("%v", currentTime.Format("2006-01-02 15:04:05.000000000")), os.Getenv("IMAGE_URL"), os.Getenv("PORT_NAME"), os.Getenv("JOB_CPU"), os.Getenv("JOB_MEMORY"), namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("PORT_NAME"), tagGenerator(), os.Getenv("PORT_NAME"))
+	return fmt.Sprintf(template, namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), constraintGenerator(), os.Getenv("NUM_REPLICA"), os.Getenv("PORT_NAME"), os.Getenv("TARGET_PORT"), generateDNSServer(), templateGenerator(), fmt.Sprintf("%v", currentTime.Format("2006-01-02 15:04:05.000000000")), os.Getenv("IMAGE_URL"), os.Getenv("PORT_NAME"), os.Getenv("JOB_CPU"), os.Getenv("JOB_MEMORY"), namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("PORT_NAME"), tagGenerator(), os.Getenv("PORT_NAME"))
 
 }
 
@@ -156,5 +157,20 @@ func templateGenerator() string {
 		env           = false
 	}`
 		return fmt.Sprintf(template, string(content))
+	}
+}
+
+func constraintGenerator() string {
+	if os.Getenv("CONS_ATTR") != "" && os.Getenv("CONS_OP") != "" && os.Getenv("CONS_VALUE") != "" {
+		template := `constraint {
+        attribute = "${%s}"
+        operator  = "%s"
+        value     = "%s"
+      	}`
+
+		return fmt.Sprintf(template, os.Getenv("CONS_ATTR"), os.Getenv("CONS_OP"), os.Getenv("CONS_VALUE"))
+
+	} else {
+		return ""
 	}
 }
