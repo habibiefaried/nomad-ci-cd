@@ -376,9 +376,23 @@ func TestHCLParsing_ValidJobSpec(t *testing.T) {
 // Auth tests: verify Nomad v2.x authentication configuration
 // =============================================================================
 
+// setenv saves the old value, sets the new one, and restores on cleanup.
+// This prevents test interference — Go tests in the same package share one process,
+// so os.Setenv/os.Unsetenv in one test permanently affects all subsequent tests.
+func setenv(t *testing.T, key, value string) {
+	old, existed := os.LookupEnv(key)
+	os.Setenv(key, value)
+	t.Cleanup(func() {
+		if existed {
+			os.Setenv(key, old)
+		} else {
+			os.Unsetenv(key)
+		}
+	})
+}
+
 func TestAuthConfig_DefaultConfigPicksUpToken(t *testing.T) {
-	os.Setenv("NOMAD_TOKEN", "test-secret-token-12345")
-	defer os.Unsetenv("NOMAD_TOKEN")
+	setenv(t, "NOMAD_TOKEN", "test-secret-token-12345")
 
 	config := nomad.DefaultConfig()
 	if config.SecretID != "test-secret-token-12345" {
@@ -388,8 +402,7 @@ func TestAuthConfig_DefaultConfigPicksUpToken(t *testing.T) {
 }
 
 func TestAuthConfig_DefaultConfigPicksUpHTTPAuth(t *testing.T) {
-	os.Setenv("NOMAD_HTTP_AUTH", "ci-user:ci-password")
-	defer os.Unsetenv("NOMAD_HTTP_AUTH")
+	setenv(t, "NOMAD_HTTP_AUTH", "ci-user:ci-password")
 
 	config := nomad.DefaultConfig()
 	if config.HttpAuth == nil {
@@ -405,18 +418,11 @@ func TestAuthConfig_DefaultConfigPicksUpHTTPAuth(t *testing.T) {
 }
 
 func TestAuthConfig_TLSPicksUpEnvVars(t *testing.T) {
-	os.Setenv("NOMAD_CACERT", "/path/to/ca.pem")
-	os.Setenv("NOMAD_CLIENT_CERT", "/path/to/client.pem")
-	os.Setenv("NOMAD_CLIENT_KEY", "/path/to/client-key.pem")
-	os.Setenv("NOMAD_TLS_SERVER_NAME", "nomad.example.com")
-	os.Setenv("NOMAD_SKIP_VERIFY", "true")
-	defer func() {
-		os.Unsetenv("NOMAD_CACERT")
-		os.Unsetenv("NOMAD_CLIENT_CERT")
-		os.Unsetenv("NOMAD_CLIENT_KEY")
-		os.Unsetenv("NOMAD_TLS_SERVER_NAME")
-		os.Unsetenv("NOMAD_SKIP_VERIFY")
-	}()
+	setenv(t, "NOMAD_CACERT", "/path/to/ca.pem")
+	setenv(t, "NOMAD_CLIENT_CERT", "/path/to/client.pem")
+	setenv(t, "NOMAD_CLIENT_KEY", "/path/to/client-key.pem")
+	setenv(t, "NOMAD_TLS_SERVER_NAME", "nomad.example.com")
+	setenv(t, "NOMAD_SKIP_VERIFY", "true")
 
 	config := nomad.DefaultConfig()
 	if config.TLSConfig == nil {
@@ -441,12 +447,11 @@ func TestAuthConfig_TLSPicksUpEnvVars(t *testing.T) {
 }
 
 func TestAuthConfig_WithoutEnvVars(t *testing.T) {
-	// Ensure no auth env vars are set.
-	os.Unsetenv("NOMAD_TOKEN")
-	os.Unsetenv("NOMAD_HTTP_AUTH")
-	os.Unsetenv("NOMAD_CLIENT_CERT")
-	os.Unsetenv("NOMAD_CLIENT_KEY")
-	os.Unsetenv("NOMAD_CACERT")
+	setenv(t, "NOMAD_TOKEN", "")
+	setenv(t, "NOMAD_HTTP_AUTH", "")
+	setenv(t, "NOMAD_CLIENT_CERT", "")
+	setenv(t, "NOMAD_CLIENT_KEY", "")
+	setenv(t, "NOMAD_CACERT", "")
 
 	config := nomad.DefaultConfig()
 	if config.SecretID != "" {
@@ -455,8 +460,6 @@ func TestAuthConfig_WithoutEnvVars(t *testing.T) {
 	if config.HttpAuth != nil {
 		t.Fatal("expected nil HttpAuth when NOMAD_HTTP_AUTH not set")
 	}
-	// TLSConfig may be initialized but with empty fields — that's safe.
-	// The client won't attempt mTLS unless cert/key are actually provided.
 	if config.TLSConfig != nil && config.TLSConfig.ClientCert != "" {
 		t.Fatal("expected no ClientCert when TLS env vars not set")
 	}
