@@ -14,3 +14,9 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 nomad-ci-cd
+
+# Local Nomad dev state
+nomad-data/
+
+# Generated TLS certificates (infra-test)
+infra-test/certs/
