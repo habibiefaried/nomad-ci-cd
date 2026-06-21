@@ -598,15 +598,15 @@ job "%s" {
 func TestSubmitJob_LocalNomad(t *testing.T) {
 	nomadAddr := resolveNomadAddr(t)
 
-	// Build config manually so we don't rely on Go test's env propagation
-	// (which can differ from parent shell when modules/cache are involved).
-	config := nomad.DefaultConfig()
-	config.Address = nomadAddr
+	// Build config from scratch — do NOT use DefaultConfig() because
+	// overriding config.Address afterward doesn't re-parse config.url
+	// in Nomad's NewClient, which can break TLS setup.
+	config := &nomad.Config{Address: nomadAddr}
 	if cacert := os.Getenv("NOMAD_CACERT"); cacert != "" {
-		if config.TLSConfig == nil {
-			config.TLSConfig = &nomad.TLSConfig{}
-		}
-		config.TLSConfig.CACert = cacert
+		config.TLSConfig = &nomad.TLSConfig{CACert: cacert}
+	}
+	if token := os.Getenv("NOMAD_TOKEN"); token != "" {
+		config.SecretID = token
 	}
 
 	client, err := nomad.NewClient(config)
