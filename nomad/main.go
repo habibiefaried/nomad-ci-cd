@@ -3,16 +3,21 @@ package nomad
 import (
 	"fmt"
 	nomad "github.com/hashicorp/nomad/api"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
 )
 
 func SubmitJob(address string) error {
-	c, err := nomad.NewClient(&nomad.Config{
-		Address: address,
-	})
+	// Start from DefaultConfig so NOMAD_TOKEN, NOMAD_CLIENT_CERT,
+	// NOMAD_CACERT, NOMAD_HTTP_AUTH etc. are picked up automatically
+	// from the environment.
+	config := nomad.DefaultConfig()
+	if address != "" {
+		config.Address = address
+	}
+
+	c, err := nomad.NewClient(config)
 	if err != nil {
 		return err
 	}
@@ -103,7 +108,11 @@ func hostGenerator() string {
 		}
 	}
 
-	return ret[:len(ret)-3]
+	if ret == "" {
+		return ""
+	}
+	// Remove trailing " || " (4 characters)
+	return ret[:len(ret)-4]
 }
 
 func tagGenerator() string {
@@ -144,7 +153,7 @@ func templateGenerator() string {
 		targetFile = os.Getenv("ENV_SOURCE")
 	}
 
-	content, err := ioutil.ReadFile(targetFile)
+	content, err := os.ReadFile(targetFile)
 	if err != nil {
 		fmt.Println(err)
 		return ""
