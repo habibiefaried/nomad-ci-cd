@@ -9,13 +9,13 @@ import (
 )
 
 func SubmitJob(address string) error {
-	// Start from DefaultConfig so NOMAD_TOKEN, NOMAD_CLIENT_CERT,
-	// NOMAD_CACERT, NOMAD_HTTP_AUTH etc. are picked up automatically
-	// from the environment.
-	config := nomad.DefaultConfig()
+	// Set NOMAD_ADDR so DefaultConfig picks up the correct address
+	// along with TLS config. Don't override config.Address afterward
+	// — the Nomad Go client caches the parsed URL and TLS setup.
 	if address != "" {
-		config.Address = address
+		os.Setenv("NOMAD_ADDR", address)
 	}
+	config := nomad.DefaultConfig()
 
 	c, err := nomad.NewClient(config)
 	if err != nil {
