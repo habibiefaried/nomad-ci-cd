@@ -40,6 +40,10 @@ A single-binary CI/CD tool that **builds Docker images** and **deploys to HashiC
 │   ├── main.go          # Nomad job HCL generation & API submission
 │   └── main_test.go     # Unit + integration tests
 ├── go.mod               # Go 1.26, Nomad v2.x API client
+├── infra-test/
+│   ├── README.md         # Local Nomad ACL setup guide
+│   ├── nomad-acl.hcl     # Nomad v2.x config with ACL enabled
+│   └── deployer-policy.hcl # CI/CD deployer ACL policy
 └── .github/workflows/   # GitHub Actions CI (GoReleaser)
 ```
 
@@ -105,6 +109,39 @@ The generated HCL defines a `service` job with:
 | `CONS_OP` | Constraint operator (e.g., `==`, `!=`, `regexp`) |
 | `CONS_VALUE` | Constraint value. All three `CONS_*` vars must be set for the constraint to apply |
 
+### Optional — Authentication (Nomad v2.x)
+
+All auth mechanisms are picked up automatically from the environment — no code changes needed.
+The binary calls `nomad.DefaultConfig()` which reads these env vars:
+
+| Variable | Auth type | Description |
+|---|---|---|
+| `NOMAD_TOKEN` | ACL token | Nomad ACL secret ID. Sent as `X-Nomad-Token` header on every request. Required when Nomad ACL is enabled. |
+| `NOMAD_HTTP_AUTH` | HTTP Basic | `username:password` for reverse-proxy or HTTP basic auth in front of Nomad |
+| `NOMAD_CLIENT_CERT` | mTLS | Path to client certificate PEM file (requires `NOMAD_CLIENT_KEY`) |
+| `NOMAD_CLIENT_KEY` | mTLS | Path to client private key PEM file (requires `NOMAD_CLIENT_CERT`) |
+| `NOMAD_CACERT` | TLS | Path to CA certificate for verifying the Nomad server |
+| `NOMAD_CAPATH` | TLS | Directory of CA certificates |
+| `NOMAD_TLS_SERVER_NAME` | TLS | Override the TLS server name (SNI) |
+| `NOMAD_SKIP_VERIFY` | TLS | Set to `true` to skip TLS verification (**dev only**) |
+
+#### Minimal ACL setup (for CI/CD)
+
+```bash
+# Create a policy
+nomad acl policy apply deployer - <<'EOF'
+namespace "default" { policy = "write" capabilities = ["submit-job","read-job","list-jobs"] }
+namespace "*"        { policy = "read"  capabilities = ["list-jobs"] }
+node                 { policy = "read" }
+EOF
+
+# Create a token
+nomad acl token create -name="ci-cd" -policy=deployer -type=client
+# → Set NOMAD_TOKEN=<Secret ID> in your CI variables
+```
+
+See [`infra-test/`](infra-test/) for a complete local Nomad v2.x + ACL test environment.
+
 ## Traefik integration
 
 The generated job includes Traefik service tags for automatic reverse-proxy configuration:
@@ -127,7 +164,9 @@ variables:
   IMAGE_URL: registry.gitlab.com/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA
   DOCKER_LOGIN_USERNAME: $CI_REGISTRY_USER
   DOCKER_LOGIN_PASSWORD: $CI_REGISTRY_PASSWORD
-  NOMAD_ADDRESS: http://nomad.internal:4646
+  NOMAD_ADDRESS: https://nomad.internal:4646
+  NOMAD_TOKEN: $NOMAD_CI_TOKEN        # ACL token (set in GitLab CI Variables)
+  NOMAD_CACERT: $NOMAD_CA_PEM         # CA cert if using internal PKI
   NOMAD_CUSTOM_NAME: my-api
   DEPLOY_ENVIRONMENT: staging
   NUM_REPLICA: "2"
