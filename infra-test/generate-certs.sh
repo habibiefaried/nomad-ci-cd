@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
 
 # Generate self-signed TLS certificates for Nomad v2.x local development.
-# Usage:  bash infra-test/generate-certs.sh
-# Output: infra-test/certs/
+#
+# Usage:
+#   bash generate-certs.sh                          # localhost only
+#   EXTERNAL_IP=194.233.68.255 bash generate-certs.sh  # add remote IP
+#
+# The EXTERNAL_IP env var adds an extra SAN entry so you can access
+# the Nomad UI/API from another machine without TLS errors.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CERT_DIR="$SCRIPT_DIR/certs"
@@ -21,7 +26,20 @@ openssl req -new -newkey rsa:4096 -days 3650 -nodes -x509 \
 
 # ── Server cert ─────────────────────────────────────────────────────
 echo "[2/4] Generating server cert..."
-cat > "$CERT_DIR/server.cnf" <<'EOF'
+
+# Build SAN list. Always include localhost/127.0.0.1.
+# Add EXTERNAL_IP if set.
+SAN_ENTRIES="DNS.1 = localhost
+DNS.2 = nomad.local
+IP.1  = 127.0.0.1"
+
+if [ -n "${EXTERNAL_IP:-}" ]; then
+  SAN_ENTRIES="$SAN_ENTRIES
+IP.3  = ${EXTERNAL_IP}"
+  echo "   -> Adding EXTERNAL_IP=$EXTERNAL_IP to certificate SANs"
+fi
+
+cat > "$CERT_DIR/server.cnf" <<EOF
 [req]
 default_bits  = 4096
 prompt        = no
@@ -38,10 +56,7 @@ extendedKeyUsage = serverAuth
 subjectAltName   = @alt_names
 
 [alt_names]
-DNS.1 = localhost
-DNS.2 = nomad.local
-IP.1  = 127.0.0.1
-IP.2  = 0.0.0.0
+$SAN_ENTRIES
 EOF
 
 openssl req -new -newkey rsa:4096 -nodes \
@@ -59,7 +74,7 @@ openssl x509 -req -days 3650 \
   -out     "$CERT_DIR/nomad-server.pem"
 
 # ── Client cert (for mTLS) ──────────────────────────────────────────
-echo "[3/4] Generating client cert (for mTLS)..."
+echo "[3/4] Generating client cert..."
 cat > "$CERT_DIR/client.cnf" <<'EOF'
 [req]
 default_bits  = 4096
@@ -96,7 +111,7 @@ rm -f "$CERT_DIR"/*.csr "$CERT_DIR"/*.cnf "$CERT_DIR"/*.srl
 
 # ── Summary ─────────────────────────────────────────────────────────
 echo ""
-echo "=== Certificates generated in $CERT_DIR/ ==="
+echo "=== Certs generated in $CERT_DIR/ ==="
 ls -1 "$CERT_DIR"
 echo ""
 echo "Next: bash run.sh"
