@@ -52,7 +52,7 @@ CN = nomad-server
 
 [v3_req]
 keyUsage         = keyEncipherment, dataEncipherment
-extendedKeyUsage = serverAuth
+extendedKeyUsage = serverAuth, clientAuth
 subjectAltName   = @alt_names
 
 [alt_names]
