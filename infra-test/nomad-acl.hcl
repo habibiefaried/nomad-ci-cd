@@ -1,26 +1,27 @@
-# Nomad v2.x standalone server with ACL + TLS (self-signed certs).
+# Nomad v2.x standalone server — ACL + TLS with self-signed certs.
 #
-# ---------------------------------------------------------------
-# Quick start WITHOUT TLS (default):
-#   nomad agent -config=infra-test/nomad-acl.hcl
+# Quick start (do this once):
+#   bash infra-test/generate-certs.sh     # generate TLS certs
+#   bash infra-test/run.sh                # start Nomad
 #
-# Quick start WITH TLS (generate certs first — see infra-test/README.md):
-#   1. Run the cert generation script to create certs/
-#   2. Uncomment the tls{} block below
-#   3. nomad agent -config=infra-test/nomad-acl.hcl
-# ---------------------------------------------------------------
+# The run.sh script handles all env setup. After Nomad starts, open a
+# new terminal and run:  nomad acl bootstrap
 
 data_dir = "./nomad-data"
 
-bind_addr = "127.0.0.1"
+bind_addr = "0.0.0.0"
 
-# Advertise addresses — used when TLS is enabled so clients connect via HTTPS.
-# Uncomment when enabling TLS:
-# advertise {
-#   http = "127.0.0.1"
-#   rpc  = "127.0.0.1"
-#   serf = "127.0.0.1"
-# }
+advertise {
+  http = "127.0.0.1"
+  rpc  = "127.0.0.1"
+  serf = "127.0.0.1"
+}
+
+ports {
+  http = 4646
+  rpc  = 4647
+  serf = 4648
+}
 
 server {
   enabled          = true
@@ -38,19 +39,13 @@ acl {
   enabled = true
 }
 
-# ------------------------------------------------------------------
-# TLS with self-signed certificates (uncomment after generating certs).
-# verify_https_client = true  → requires mTLS (client must present cert)
-# verify_https_client = false → server-only TLS (client just needs CA cert)
-# ------------------------------------------------------------------
+tls {
+  http = true
+  rpc  = true
 
-# tls {
-#   http = true
-#   rpc  = true
-#
-#   ca_file   = "infra-test/certs/nomad-ca.pem"
-#   cert_file = "infra-test/certs/nomad-server.pem"
-#   key_file  = "infra-test/certs/nomad-server-key.pem"
-#
-#   verify_https_client = false   # set to true for mTLS
-# }
+  ca_file   = "infra-test/certs/nomad-ca.pem"
+  cert_file = "infra-test/certs/nomad-server.pem"
+  key_file  = "infra-test/certs/nomad-server-key.pem"
+
+  verify_https_client = false   # set to true for mTLS
+}
