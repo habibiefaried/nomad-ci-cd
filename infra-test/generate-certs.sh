@@ -51,7 +51,7 @@ req_extensions     = v3_req
 CN = nomad-server
 
 [v3_req]
-keyUsage         = keyEncipherment, dataEncipherment
+keyUsage         = digitalSignature, keyEncipherment, dataEncipherment
 extendedKeyUsage = serverAuth, clientAuth
 subjectAltName   = @alt_names
 
