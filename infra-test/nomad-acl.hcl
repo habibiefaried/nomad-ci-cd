@@ -47,5 +47,5 @@ tls {
   cert_file = "certs/nomad-server.pem"
   key_file  = "certs/nomad-server-key.pem"
 
-  verify_https_client = false   # set to true for mTLS
+  verify_https_client = false   # server-only TLS (no mTLS)
 }

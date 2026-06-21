@@ -4,11 +4,9 @@ set -eu
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CERT_DIR="$SCRIPT_DIR/certs"
 
-# ── TLS env vars ────────────────────────────────────────────────────
+# ── TLS env vars (server-only TLS, no mTLS) ─────────────────────────
 export NOMAD_ADDR="https://127.0.0.1:4646"
 export NOMAD_CACERT="$CERT_DIR/nomad-ca.pem"
-export NOMAD_CLIENT_CERT="$CERT_DIR/nomad-client.pem"
-export NOMAD_CLIENT_KEY="$CERT_DIR/nomad-client-key.pem"
 
 echo "=== Bootstrapping Nomad ACL ==="
 
@@ -16,7 +14,7 @@ echo "=== Bootstrapping Nomad ACL ==="
 echo ""
 echo "[0/4] Waiting for Nomad to be ready..."
 for i in $(seq 1 30); do
-  if curl -sk --cert "$NOMAD_CLIENT_CERT" --key "$NOMAD_CLIENT_KEY" \
+  if curl -sk --cacert "$NOMAD_CACERT" \
           "$NOMAD_ADDR/v1/status/leader" 2>/dev/null | grep -q "."; then
     echo "   -> Nomad is ready"
     break
@@ -102,7 +100,5 @@ echo "=============================================="
 echo ""
 echo "  export NOMAD_ADDR=https://127.0.0.1:4646"
 echo "  export NOMAD_CACERT=$CERT_DIR/nomad-ca.pem"
-echo "  export NOMAD_CLIENT_CERT=$CERT_DIR/nomad-client.pem"
-echo "  export NOMAD_CLIENT_KEY=$CERT_DIR/nomad-client-key.pem"
 echo "  export NOMAD_TOKEN=\$(cat $SCRIPT_DIR/ci-token.txt)"
 echo ""
