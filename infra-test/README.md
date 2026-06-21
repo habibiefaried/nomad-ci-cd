@@ -1,80 +1,80 @@
 # infra-test
 
-Local Nomad v2.x cluster with ACL + TLS via self-signed certs — used for
-integration testing `nomad-ci-cd`. Two scripts, one config, one policy.
+Local Nomad v2.x with ACL + self-signed TLS. Two terminals, three scripts.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `run.sh` | **Entry point** — generates certs if needed, starts Nomad, prints next steps |
-| `generate-certs.sh` | Generates self-signed CA + server + client certs into `certs/` |
-| `nomad-acl.hcl` | Nomad v2.x config — `0.0.0.0:4646`, ACL on, TLS on, `raw_exec` driver |
-| `deployer-policy.hcl` | ACL policy for CI/CD — submit/read jobs in default ns, read nodes |
+| `run.sh` | **Terminal 1** — generates certs if missing, starts Nomad on `https://0.0.0.0:4646` |
+| `setup-acl.sh` | **Terminal 2** — bootstraps ACL, creates CI token, saves to `ci-token.txt` |
+| `generate-certs.sh` | Called by `run.sh` — generates self-signed certs into `certs/` |
+| `nomad-acl.hcl` | Nomad v2.x config — ACL + TLS on, `raw_exec` driver |
+| `deployer-policy.hcl` | ACL policy — submit/read jobs in default ns, read nodes |
+| `mgmt-token.txt` | Created by `setup-acl.sh` — management token |
+| `ci-token.txt` | Created by `setup-acl.sh` — CI/CD token |
 
 ## Quick start
 
 ```bash
-# Terminal 1 — start Nomad
-bash infra-test/run.sh
+cd infra-test
+
+# Terminal 1
+bash run.sh
+
+# Terminal 2 (once Nomad is up)
+bash setup-acl.sh
 ```
 
-`run.sh` will:
-1. Check nomad is installed
-2. Auto-generate certs if `certs/nomad-server.pem` doesn't exist
-3. Print the exact commands for the next step
-4. Start Nomad on `https://0.0.0.0:4646`
+That's it. `ci-token.txt` now contains your CI token.
+
+## Test with nomad-ci-cd
 
 ```bash
-# Terminal 2 — bootstrap ACL and create a CI token
+cd infra-test
+
 export NOMAD_ADDR=https://127.0.0.1:4646
-export NOMAD_CACERT=infra-test/certs/nomad-ca.pem
-export NOMAD_CLIENT_CERT=infra-test/certs/nomad-client.pem
-export NOMAD_CLIENT_KEY=infra-test/certs/nomad-client-key.pem
+export NOMAD_CACERT=certs/nomad-ca.pem
+export NOMAD_CLIENT_CERT=certs/nomad-client.pem
+export NOMAD_CLIENT_KEY=certs/nomad-client-key.pem
+export NOMAD_TOKEN=$(cat ci-token.txt)
 
-nomad acl bootstrap
-# → Save the Secret ID (management token)
-
-export NOMAD_TOKEN=<management-token>
-nomad acl policy apply deployer infra-test/deployer-policy.hcl
-nomad acl token create -name=ci-cd -policy=deployer -type=client
-# → Save this Secret ID (CI/CD token)
-```
-
-```bash
-# Test with nomad-ci-cd
-export NOMAD_TOKEN=<ci-cd-token>
+cd ..
 go test -v -run TestSubmitJob_WithAuthToken ./nomad/
 ```
 
-## What runs where
+## What happens
 
 ```
-$ bash infra-test/run.sh
-        │
-        ├─► generate-certs.sh  (if certs/ missing)
-        │   └─► infra-test/certs/
-        │       ├── nomad-ca.pem
-        │       ├── nomad-ca-key.pem
-        │       ├── nomad-server.pem
-        │       ├── nomad-server-key.pem
-        │       ├── nomad-client.pem
-        │       └── nomad-client-key.pem
-        │
-        └─► nomad agent -config=infra-test/nomad-acl.hcl
-            ├── 0.0.0.0:4646  (TLS, self-signed server cert)
-            ├── ACL enabled
-            └── raw_exec driver (no Docker needed)
+Terminal 1                          Terminal 2
+─────────                           ─────────
+bash run.sh
+  ├─ generate-certs.sh (if needed)
+  │   └─► certs/
+  │       ├── nomad-ca.pem
+  │       ├── nomad-server.pem
+  │       ├── nomad-server-key.pem
+  │       ├── nomad-client.pem
+  │       └── nomad-client-key.pem
+  │
+  └─ nomad agent -config=nomad-acl.hcl
+      ├── 0.0.0.0:4646 (TLS)
+      ├── ACL enabled               bash setup-acl.sh
+      └── ready... ───────────────────► nomad acl bootstrap
+                                        ├─► mgmt-token.txt
+                                        ├─ nomad acl policy apply deployer
+                                        └─ nomad acl token create ci-cd
+                                           └─► ci-token.txt
 ```
 
 ## TLS modes
 
-| Config | What Nomad requires |
-|---|---|
-| `verify_https_client = false` (default) | Server-only TLS — client only needs `NOMAD_CACERT` |
-| `verify_https_client = true` | mTLS — client must also present `NOMAD_CLIENT_CERT` + `NOMAD_CLIENT_KEY` |
+In `nomad-acl.hcl`:
 
-Switch modes in `nomad-acl.hcl`.
+| `verify_https_client` | Mode | Client needs |
+|---|---|---|
+| `false` (default) | Server-only TLS | `NOMAD_CACERT` |
+| `true` | mTLS | `NOMAD_CACERT` + `NOMAD_CLIENT_CERT` + `NOMAD_CLIENT_KEY` |
 
 ## ACL policy
 
@@ -87,20 +87,17 @@ Switch modes in `nomad-acl.hcl`.
 ## Cleanup
 
 ```bash
-rm -rf ./nomad-data/
-```
-
-To regenerate certs:
-```bash
-rm -rf infra-test/certs/
-bash infra-test/generate-certs.sh
+# Stop Nomad (Ctrl+C in terminal 1), then:
+rm -rf certs/ mgmt-token.txt ci-token.txt
+cd .. && rm -rf nomad-data/
 ```
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `Permission denied` | `NOMAD_TOKEN` is missing or invalid |
-| `x509: certificate signed by unknown authority` | `NOMAD_CACERT` not set or wrong path |
-| `connection refused` | Nomad not started — run `bash infra-test/run.sh` |
-| `No such file or directory` | Run commands from the repo root |
+| `Permission denied` | `NOMAD_TOKEN` missing — run `bash setup-acl.sh` or `cat ci-token.txt` |
+| `x509: unknown authority` | `NOMAD_CACERT` not set — `export NOMAD_CACERT=certs/nomad-ca.pem` |
+| `connection refused` | Nomad not running — `bash run.sh` in terminal 1 |
+| `ACL not enabled` | You're not using `nomad-acl.hcl` — don't use `-dev` flag |
+| Cert expired | `rm -rf certs/ && bash generate-certs.sh` then restart |

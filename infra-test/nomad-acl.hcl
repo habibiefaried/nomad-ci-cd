@@ -1,13 +1,13 @@
 # Nomad v2.x standalone server — ACL + TLS with self-signed certs.
 #
-# Quick start (do this once):
-#   bash infra-test/generate-certs.sh     # generate TLS certs
-#   bash infra-test/run.sh                # start Nomad
+# All paths are relative to infra-test/ (the working directory when
+# run.sh starts Nomad). Do NOT run nomad directly — use the scripts:
 #
-# The run.sh script handles all env setup. After Nomad starts, open a
-# new terminal and run:  nomad acl bootstrap
+#   cd infra-test
+#   bash run.sh          # terminal 1
+#   bash setup-acl.sh    # terminal 2 (after run.sh is up)
 
-data_dir = "./nomad-data"
+data_dir = "../nomad-data"
 
 bind_addr = "0.0.0.0"
 
@@ -43,9 +43,9 @@ tls {
   http = true
   rpc  = true
 
-  ca_file   = "infra-test/certs/nomad-ca.pem"
-  cert_file = "infra-test/certs/nomad-server.pem"
-  key_file  = "infra-test/certs/nomad-server-key.pem"
+  ca_file   = "certs/nomad-ca.pem"
+  cert_file = "certs/nomad-server.pem"
+  key_file  = "certs/nomad-server-key.pem"
 
   verify_https_client = false   # set to true for mTLS
 }

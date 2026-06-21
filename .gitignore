@@ -20,3 +20,7 @@ nomad-data/
 
 # Generated TLS certificates (infra-test)
 infra-test/certs/
+
+# Generated ACL tokens (infra-test)
+infra-test/mgmt-token.txt
+infra-test/ci-token.txt
