@@ -478,8 +478,7 @@ func TestSubmitJob_WithAuthToken(t *testing.T) {
 	if testToken == "" {
 		testToken = "ci-test-token-fake"
 	}
-	os.Setenv("NOMAD_TOKEN", testToken)
-	defer os.Unsetenv("NOMAD_TOKEN")
+	setenv(t, "NOMAD_TOKEN", testToken)
 
 	// Set env vars for a valid Docker job (HCL will parse, but placement
 	// may fail without Docker driver — that's fine for auth testing).

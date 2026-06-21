@@ -10,12 +10,21 @@ import (
 
 func SubmitJob(address string) error {
 	// Set NOMAD_ADDR so DefaultConfig picks up the correct address
-	// along with TLS config. Don't override config.Address afterward
-	// — the Nomad Go client caches the parsed URL and TLS setup.
+	// along with TLS config.
 	if address != "" {
 		os.Setenv("NOMAD_ADDR", address)
 	}
 	config := nomad.DefaultConfig()
+
+	// Self-signed cert support: if no CA cert is provided, skip TLS
+	// verification so self-signed/invalid certs work out of the box.
+	// NOMAD_TOKEN is still required for ACL authentication.
+	if os.Getenv("NOMAD_CACERT") == "" && os.Getenv("NOMAD_CAPATH") == "" {
+		if config.TLSConfig == nil {
+			config.TLSConfig = &nomad.TLSConfig{}
+		}
+		config.TLSConfig.Insecure = true
+	}
 
 	c, err := nomad.NewClient(config)
 	if err != nil {

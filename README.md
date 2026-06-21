@@ -125,6 +125,10 @@ The binary calls `nomad.DefaultConfig()` which reads these env vars:
 | `NOMAD_TLS_SERVER_NAME` | TLS | Override the TLS server name (SNI) |
 | `NOMAD_SKIP_VERIFY` | TLS | Set to `true` to skip TLS verification (**dev only**) |
 
+**Self-signed certificates** are supported two ways:
+- **Secure**: set `NOMAD_CACERT` to the CA that signed the server cert — the client verifies the server against it
+- **Skip (dev)**: set `NOMAD_SKIP_VERIFY=true` — trusts any certificate (like `curl -k`)
+
 #### Minimal ACL setup (for CI/CD)
 
 ```bash
