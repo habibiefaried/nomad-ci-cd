@@ -76,9 +76,14 @@ The generated HCL defines a `service` job with:
 | Variable | Description |
 |---|---|
 | `DOCKERFILE` | Path to the Dockerfile (e.g., `Dockerfile`, `build/Dockerfile.prod`) |
-| `IMAGE_URL` | Docker image URL with tag (e.g., `registry.example.com/myapp:v1.2.3`) |
-| `DOCKER_LOGIN_USERNAME` | Docker Hub username |
-| `DOCKER_LOGIN_PASSWORD` | Docker Hub password or access token |
+| `IMAGE_URL` | Docker image URL with tag (e.g., `registry.example.com/myapp:v1.2.3`). The registry host is auto-extracted for login unless `DOCKER_REGISTRY` is set. Docker Hub images (no host prefix) skip registry login. |
+| `DOCKER_LOGIN_USERNAME` | Docker registry username |
+| `DOCKER_LOGIN_PASSWORD` | Docker registry password or access token |
+
+### Optional — Docker
+| Variable | Description |
+|---|---|
+| `DOCKER_REGISTRY` | Override the registry URL for `docker login`. By default, the registry is extracted from `IMAGE_URL` (e.g., `registry.example.com/myapp:v1` → login to `registry.example.com`). Set this when auto-detection fails or when the login endpoint differs from the image prefix. |
 
 ### Required for Nomad
 | Variable | Description |
@@ -99,6 +104,14 @@ The generated HCL defines a `service` job with:
 |---|---|
 | `APP_PREFIX_REGEX` | URL path prefix to route (e.g., `/api`). Enables PathPrefix rule and stripprefix middleware |
 | `TRAEFIK_PASSWORD` | Apache htpasswd-compatible credentials for basic auth protection |
+
+### Optional — Registry auth for Nomad
+| Variable | Description |
+|---|---|
+| `NOMAD_REGISTRY_USERNAME` | Username for Nomad to pull the Docker image from a private registry. Falls back to `DOCKER_LOGIN_USERNAME` if not set. |
+| `NOMAD_REGISTRY_PASSWORD` | Password for Nomad to pull the Docker image from a private registry. Falls back to `DOCKER_LOGIN_PASSWORD` if not set. |
+
+> When both username and password are available, an `auth {}` block is included in the Nomad job config so Nomad can authenticate to the private registry when pulling the image. If your registry is public (or Docker Hub), leave these unset — no `auth {}` block is generated.
 
 ### Optional — Advanced
 | Variable | Description |
@@ -159,15 +172,18 @@ The generated job includes Traefik service tags for automatic reverse-proxy conf
 
 All Traefik configuration happens through Consul Catalog tags — no separate Traefik config files needed.
 
-## Example GitLab CI
+## Example GitLab CI / GitHub Actions
 
 ```yaml
 # .gitlab-ci.yml
 variables:
   DOCKERFILE: Dockerfile
-  IMAGE_URL: registry.gitlab.com/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA
+  IMAGE_URL: registry.example.com/$CI_PROJECT_PATH:$CI_COMMIT_SHORT_SHA
   DOCKER_LOGIN_USERNAME: $CI_REGISTRY_USER
   DOCKER_LOGIN_PASSWORD: $CI_REGISTRY_PASSWORD
+  # Auto-detected: registry = registry.example.com → docker login registry.example.com
+  # NOMAD_REGISTRY_USERNAME and NOMAD_REGISTRY_PASSWORD inherit from DOCKER_LOGIN_*
+  # → auth {} block generated so Nomad can pull from the private registry
   NOMAD_ADDRESS: https://nomad.internal:4646
   NOMAD_TOKEN: $NOMAD_CI_TOKEN        # ACL token (set in GitLab CI Variables)
   NOMAD_CACERT: $NOMAD_CA_PEM         # CA cert if using internal PKI
