@@ -57,12 +57,48 @@ func getRegistry() string {
 	return ""
 }
 
-// tagImageURL returns IMAGE_URL with its tag replaced by Version.
-// If IMAGE_URL has no tag, Version is appended.
+// determineTag discovers the Docker image tag from the current git repository.
+// It runs inside the service repo's CI pipeline, so git reflects the service's state.
+//
+// Priority:
+//  1. Git tag on HEAD    (e.g. "v1.0.0")
+//  2. Short commit SHA   (first 9 chars, e.g. "abc123def")
+//  3. Build-time Version  (set via ldflags; fallback when no .git directory)
+//  4. "dev"              (last resort — local build outside any repo)
+func determineTag() string {
+	// 1. Is HEAD an exact tag?
+	out, err := exec.Command("git", "describe", "--tags", "--exact-match").Output()
+	if err == nil {
+		tag := strings.TrimSpace(string(out))
+		if tag != "" {
+			return tag
+		}
+	}
+
+	// 2. Fall back to short commit SHA (9 chars).
+	out, err = exec.Command("git", "rev-parse", "--short=9", "HEAD").Output()
+	if err == nil {
+		sha := strings.TrimSpace(string(out))
+		if sha != "" {
+			return sha
+		}
+	}
+
+	// 3. Fall back to build-time Version (from ldflags).
+	if Version != "" && Version != "dev" {
+		return Version
+	}
+
+	// 4. Last resort.
+	return "dev"
+}
+
+// tagImageURL returns IMAGE_URL with its tag replaced by the runtime-determined tag.
+// If IMAGE_URL has no tag, the tag is appended.
 // The registry port (e.g. registry:5000) is never mistaken for a tag
 // because ports always appear in the host segment, before the first "/".
 //
-// Examples (Version = "abc123def"):
+// Examples (determineTag() = "abc123def"):
 //
 //	registry:5000/myimage:latest   →  registry:5000/myimage:abc123def
 //	registry.example.com/repo:tag  →  registry.example.com/repo:abc123def
@@ -81,7 +117,7 @@ func tagImageURL() string {
 		parts[len(parts)-1] = last[:idx]
 	}
 
-	return strings.Join(parts, "/") + ":" + Version
+	return strings.Join(parts, "/") + ":" + determineTag()
 }
 
 func DockerBuildAndPush() error {
