@@ -7,6 +7,10 @@ import (
 	"os/exec"
 )
 
+// Version is set at build time via ldflags (git tag or short commit SHA).
+// Default "dev" means built locally without goreleaser.
+var Version = "dev"
+
 func RunCommandExec(cmdinput string) (string, error) {
 	fmt.Println("[DEBUG] Executing " + cmdinput)
 	cmd := exec.Command("/bin/sh", "-c", cmdinput)

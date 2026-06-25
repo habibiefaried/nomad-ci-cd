@@ -57,13 +57,43 @@ func getRegistry() string {
 	return ""
 }
 
+// tagImageURL returns IMAGE_URL with its tag replaced by Version.
+// If IMAGE_URL has no tag, Version is appended.
+// The registry port (e.g. registry:5000) is never mistaken for a tag
+// because ports always appear in the host segment, before the first "/".
+//
+// Examples (Version = "abc123def"):
+//
+//	registry:5000/myimage:latest   →  registry:5000/myimage:abc123def
+//	registry.example.com/repo:tag  →  registry.example.com/repo:abc123def
+//	myimage:latest                 →  myimage:abc123def
+//	myimage                        →  myimage:abc123def
+func tagImageURL() string {
+	imageURL := os.Getenv("IMAGE_URL")
+
+	// Split into segments: [host(:port), path, ..., image(:tag)]
+	parts := strings.Split(imageURL, "/")
+	last := parts[len(parts)-1]
+
+	// Strip existing tag from the last segment (image name), if present.
+	// A ":" in the first segment is a registry port, not a tag.
+	if idx := strings.LastIndex(last, ":"); idx != -1 {
+		parts[len(parts)-1] = last[:idx]
+	}
+
+	return strings.Join(parts, "/") + ":" + Version
+}
+
 func DockerBuildAndPush() error {
 	err := isEligible()
 	if err != nil {
 		return err
 	}
 
-	cmdStr := fmt.Sprintf("docker build -f %v -t %v .", os.Getenv("DOCKERFILE"), os.Getenv("IMAGE_URL"))
+	taggedURL := tagImageURL()
+	fmt.Printf("[INFO] Docker image tag: %s\n", taggedURL)
+
+	cmdStr := fmt.Sprintf("docker build -f %v -t %v .", os.Getenv("DOCKERFILE"), taggedURL)
 	_, err = RunCommandExec(cmdStr)
 	if err != nil {
 		return err
@@ -87,7 +117,7 @@ func DockerBuildAndPush() error {
 	}
 	fmt.Println(out)
 
-	cmdStr = fmt.Sprintf("docker push %v", os.Getenv("IMAGE_URL"))
+	cmdStr = fmt.Sprintf("docker push %v", taggedURL)
 	out, err = RunCommandExec(cmdStr)
 	if err != nil {
 		return err
