@@ -26,6 +26,13 @@ func main() {
 		os.Exit(3)
 	}
 
+	// Sync IMAGE_URL to the dynamically-tagged version so the Nomad job
+	// references the same image that DockerBuildAndPush just pushed,
+	// never "latest".
+	taggedURL := helper.TagImageURL()
+	os.Setenv("IMAGE_URL", taggedURL)
+	fmt.Printf("[INFO] Nomad job will use image: %s\n", taggedURL)
+
 	if os.Getenv("NOMAD_ADDRESS") == "" {
 		fmt.Println("skip nomad deployment")
 	} else {

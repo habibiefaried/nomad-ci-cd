@@ -93,7 +93,7 @@ func determineTag() string {
 	return "dev"
 }
 
-// tagImageURL returns IMAGE_URL with its tag replaced by the runtime-determined tag.
+// TagImageURL returns IMAGE_URL with its tag replaced by the runtime-determined tag.
 // If IMAGE_URL has no tag, the tag is appended.
 // The registry port (e.g. registry:5000) is never mistaken for a tag
 // because ports always appear in the host segment, before the first "/".
@@ -104,7 +104,7 @@ func determineTag() string {
 //	registry.example.com/repo:tag  →  registry.example.com/repo:abc123def
 //	myimage:latest                 →  myimage:abc123def
 //	myimage                        →  myimage:abc123def
-func tagImageURL() string {
+func TagImageURL() string {
 	imageURL := os.Getenv("IMAGE_URL")
 
 	// Split into segments: [host(:port), path, ..., image(:tag)]
@@ -126,7 +126,7 @@ func DockerBuildAndPush() error {
 		return err
 	}
 
-	taggedURL := tagImageURL()
+	taggedURL := TagImageURL()
 	fmt.Printf("[INFO] Docker image tag: %s\n", taggedURL)
 
 	cmdStr := fmt.Sprintf("docker build -f %v -t %v .", os.Getenv("DOCKERFILE"), taggedURL)
