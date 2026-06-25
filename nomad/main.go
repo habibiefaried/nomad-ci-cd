@@ -16,10 +16,9 @@ func SubmitJob(address string) error {
 	}
 	config := nomad.DefaultConfig()
 
-	// Self-signed cert support: if no CA cert is provided, skip TLS
-	// verification so self-signed/invalid certs work out of the box.
-	// NOMAD_TOKEN is still required for ACL authentication.
-	if os.Getenv("NOMAD_CACERT") == "" && os.Getenv("NOMAD_CAPATH") == "" {
+	// Only skip TLS verification when explicitly opted in.
+	// Use NOMAD_CACERT or NOMAD_CAPATH for proper CA verification.
+	if os.Getenv("NOMAD_SKIP_VERIFY") == "true" {
 		if config.TLSConfig == nil {
 			config.TLSConfig = &nomad.TLSConfig{}
 		}
@@ -71,6 +70,7 @@ job %s--%s {
         image = "%s"
         ports = ["%s"]
         force_pull = true
+        %s
       }
 
       resources {
@@ -94,8 +94,27 @@ job %s--%s {
     }
   }
 }`
-	return fmt.Sprintf(template, namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), constraintGenerator(), os.Getenv("NUM_REPLICA"), os.Getenv("PORT_NAME"), os.Getenv("TARGET_PORT"), generateDNSServer(), templateGenerator(), fmt.Sprintf("%v", currentTime.Format("2006-01-02 15:04:05.000000000")), os.Getenv("IMAGE_URL"), os.Getenv("PORT_NAME"), os.Getenv("JOB_CPU"), os.Getenv("JOB_MEMORY"), namaJob, os.Getenv("DEPLOY_ENVIRONMENT"), os.Getenv("PORT_NAME"), tagGenerator(), os.Getenv("PORT_NAME"))
-
+	return fmt.Sprintf(template,
+		namaJob,
+		os.Getenv("DEPLOY_ENVIRONMENT"),
+		constraintGenerator(),
+		os.Getenv("NUM_REPLICA"),
+		os.Getenv("PORT_NAME"),
+		os.Getenv("TARGET_PORT"),
+		generateDNSServer(),
+		templateGenerator(),
+		fmt.Sprintf("%v", currentTime.Format("2006-01-02 15:04:05.000000000")),
+		os.Getenv("IMAGE_URL"),
+		os.Getenv("PORT_NAME"),
+		authGenerator(),
+		os.Getenv("JOB_CPU"),
+		os.Getenv("JOB_MEMORY"),
+		namaJob,
+		os.Getenv("DEPLOY_ENVIRONMENT"),
+		os.Getenv("PORT_NAME"),
+		tagGenerator(),
+		os.Getenv("PORT_NAME"),
+	)
 }
 
 func generateDNSServer() string {
@@ -103,9 +122,8 @@ func generateDNSServer() string {
 		return fmt.Sprintf(`dns {
         servers = ["%s"]
       }`, os.Getenv("CONTAINER_DNS_SERVER"))
-	} else {
-		return ""
 	}
+	return ""
 }
 
 func hostGenerator() string {
@@ -122,6 +140,29 @@ func hostGenerator() string {
 	}
 	// Remove trailing " || " (4 characters)
 	return ret[:len(ret)-4]
+}
+
+// authGenerator returns a Nomad Docker auth block for private registry pull.
+// Reads NOMAD_REGISTRY_USERNAME / NOMAD_REGISTRY_PASSWORD, falling back to
+// DOCKER_LOGIN_USERNAME / DOCKER_LOGIN_PASSWORD.
+// Returns empty string if no credentials are set.
+func authGenerator() string {
+	username := os.Getenv("NOMAD_REGISTRY_USERNAME")
+	if username == "" {
+		username = os.Getenv("DOCKER_LOGIN_USERNAME")
+	}
+	password := os.Getenv("NOMAD_REGISTRY_PASSWORD")
+	if password == "" {
+		password = os.Getenv("DOCKER_LOGIN_PASSWORD")
+	}
+
+	if username != "" && password != "" {
+		return fmt.Sprintf(`auth {
+        username = "%s"
+        password = "%s"
+      }`, username, password)
+	}
+	return ""
 }
 
 func tagGenerator() string {
@@ -166,16 +207,16 @@ func templateGenerator() string {
 	if err != nil {
 		fmt.Println(err)
 		return ""
-	} else {
-		template := `template {
-		data          = <<EOH
-		%s
-		EOH
-		destination   = ".env"
-		env           = false
-	}`
-		return fmt.Sprintf(template, string(content))
 	}
+
+	template := `template {
+        data          = <<EOH
+%s
+        EOH
+        destination   = ".env"
+        env           = false
+      }`
+	return fmt.Sprintf(template, string(content))
 }
 
 func constraintGenerator() string {
@@ -184,11 +225,9 @@ func constraintGenerator() string {
         attribute = "${%s}"
         operator  = "%s"
         value     = "%s"
-      	}`
+      }`
 
 		return fmt.Sprintf(template, os.Getenv("CONS_ATTR"), os.Getenv("CONS_OP"), os.Getenv("CONS_VALUE"))
-
-	} else {
-		return ""
 	}
+	return ""
 }
